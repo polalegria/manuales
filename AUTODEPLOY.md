@@ -20,6 +20,9 @@ Pulsamos sobre `New Repository Secret` y creamos estos 3 parametros:
   > [!CAUTION]
   > No añadir contraseña, no funcionara la conexión ya que no es compatible.
   
+  > [!CAUTION]
+  > Advises about risks or negative outcomes of certain actions.
+  
   Ahora le diremos al servidor que confie en esa llave para entrar por SSH:
   
   ```
@@ -126,8 +129,8 @@ git reset --hard origin/main
 ```
 
 > [!IMPORTANT]
-> Dinahosting suele tener varias versiones de PHP. Tu script usa `php84`, así que verifica que el servidor la tiene disponible:
-> **Prueba de PHP**: Escribe `php84 -v`. Si te da la versión, perfecto.
+> Dinahosting suele tener varias versiones de PHP. Tu script usa `php84`, así que verifica que el servidor la tiene disponible:\
+> **Prueba de PHP**: Escribe `php84 -v`. Si te da la versión, perfecto.\
 > **Prueba de Composer**: Escribe `which composer. Si te devuelve una ruta (ej: `/usr/local/bin/composer`), el script funcionará.
 
 ## 4. Primer "Push" de activación
