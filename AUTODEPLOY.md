@@ -2,10 +2,10 @@
 En este manual crearemos una conexión segura desde GitHub hacia el servidor para que al hacer commit al repo haga el deploy automaticamente desde GiHub Actions en nuestro Servidor / Hosting.
 
 ## 1. Creación de variables en GitHub
-Vamos a nuestro panel de GitHub y entramos a: 
+Vamos a nuestro panel de GitHub y entramos a:\
 `Settings` > `Secrets and Variables` > `Actions`.
 
-Pulsamos sobre `New Repository Secret` y creamos estos 3 parametros:\
+Pulsamos sobre `New Repository Secret` y creamos estos 3 parametros:
 
 - `SSH_USER`: Hace referencia al nombre de usuario con el cual se accede por SSH al hosting.
 - `SSH_HOST`: Hace referencia a la URL o IP del servidor al cual se quiere acceder.
