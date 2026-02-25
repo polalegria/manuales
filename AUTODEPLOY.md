@@ -1,53 +1,53 @@
-# Autodeploy from GitHub Actions a Servidor
-En este manual crearemos una conexión segura desde GitHub hacia el servidor para que al hacer commit al repo haga el deploy automaticamente desde GiHub Actions en nuestro Servidor / Hosting.
+# Autodeploy desde GitHub Actions a Servidor (Dinahosting)
 
-## 1. Creación de variables en GitHub
-Vamos a nuestro panel de GitHub y entramos dentro de nuestro repositorio, una vez dentro vamos a:\
+En este manual crearemos una conexión segura desde GitHub hacia el servidor para que, al hacer *push* al repositorio, se realice el despliegue automáticamente mediante **GitHub Actions**.
+
+## 1. Configuración de variables en GitHub
+
+Vamos al panel de GitHub, entramos en nuestro repositorio y navegamos a:
 `Settings` > `Secrets and Variables` > `Actions`.
 
-Pulsamos sobre `New Repository Secret` y creamos estos 3 parametros:
+Pulsamos sobre `New repository secret` y creamos estos 3 parámetros:
 
-- `SSH_USER`: Hace referencia al nombre de usuario con el cual se accede por SSH al hosting.
-- `SSH_HOST`: Hace referencia a la URL o IP del servidor al cual se quiere acceder.
-- `SSH_PRIVATE_KEY`:\
-  Esta es más compleja ya que la tenemos que generar nosotros desde SSH.\
-  En este caso, la crearemos directamente en nuestro hosting con los siguientes comandos:
-  
-  ```
-  ssh-keygen -t rsa -b 4096 -C "deploy-github"
-  ```
+* **`SSH_USER`**: Nombre de usuario con el cual se accede por SSH al hosting.
+* **`SSH_HOST`**: URL o IP del servidor de destino.
+* **`SSH_PRIVATE_KEY`**: Contenido de la llave privada. La generaremos directamente en el hosting para asegurar la compatibilidad.
 
-  > [!CAUTION]
-  > No añadir contraseña, no funcionara la conexión ya que no es compatible.
-  
-  > [!CAUTION]
-  > Advises about risks or negative outcomes of certain actions.
-  
-  Ahora le diremos al servidor que confie en esa llave para entrar por SSH:
-  
-  ```
-  cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
-  chmod 600 ~/.ssh/authorized_keys
-  chmod 700 ~/.ssh
-  ```
-  Esto metera la `llave pública` en el listado de accesos permitidos.\
-  Una vez ejecutado lo anterior vamos a obtener la llave publica para GitHub, ejecutamos esto en el servidor:
-  
-  ```
-  cat ~/.ssh/id_rsa
-  ```
-  y copiamos todo el texto que aparece, incluyendo las líneas:\
-  `-----BEGIN RSA PRIVATE KEY-----`\
-  ...\
-  `-----END RSA PRIVATE KEY-----`
+### Generación de llaves en el servidor
 
-## 2. Creación del fichero .yml
-En nuestra raiz del proyecto o donde tengamos inicializado GIT, creamos el siguiente archivo:\
+Ejecuta el siguiente comando en la terminal de tu hosting:
+  
+```bash
+ssh-keygen -t rsa -b 4096 -C "deploy-github"
+```
+
+> [!WARNING]
+> **No añadir contraseña (passphrase)**; de lo contrario, la conexión fallará ya que el proceso automatizado no podrá introducirla.
+  
+Ahora autorizaremos la llave en el servidor para permitir el acceso SSH:
+  
+```bash
+cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
+chmod 600 ~/.ssh/authorized_keys
+chmod 700 ~/.ssh
+```
+Finalmente, obtenemos la llave privada para pegarla en el Secret de GitHub:
+  
+```bash
+cat ~/.ssh/id_rsa
+```
+Copia todo el texto que aparece, incluyendo las líneas de inicio y fin:\
+`-----BEGIN RSA PRIVATE KEY-----`\
+...\
+`-----END RSA PRIVATE KEY-----`
+
+## 2. Creación del fichero de Workflow
+En la raíz del proyecto local, crea el archivo en la siguiente ruta:\
 `.github/workflows/deploy.yml`
 
-Dejo un ejemplo de mi deploy.yml, en mi caso es para un proyecto de Wordpress con Roots / Sage.
+Contenido del archivo (ajustado para Roots / Sage):
 
-```
+```YAML
 name: Deploy to Dinahosting
 
 on:
@@ -69,12 +69,12 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            # Forzamos la carga del perfil de usuario para tener los paths correctos
+            # Forzamos la carga del perfil de usuario para los paths
             [ -f ~/.bashrc ] && source ~/.bashrc
             [ -f ~/.bash_profile ] && source ~/.bash_profile
 
-            # 1. Navegar al directorio raíz (Ajusta 'directorio' por tu usuario/carpeta real)
-            cd /home/directorio/www
+            # 1. Navegar al directorio raíz (Ajusta la ruta)
+            cd /home/tu_usuario/www
 
             # 2. Pull del código
             git config pull.rebase false
@@ -84,14 +84,10 @@ jobs:
             php84 $(which composer) install --no-interaction --optimize-autoloader --no-dev
 
             # 4. Compilación del Tema Sage
-            # Ajustamos a la carpeta del tema actual (Ajusta 'nombre_del_theme' por su nombre real)
-            cd web/app/themes/nombre_del_theme
+            cd web/app/themes/nombre_del_tema
             
-            # Instalamos dependencias de PHP del tema
             php84 $(which composer) install --no-interaction --optimize-autoloader --no-dev
             
-            # Instalamos dependencias de JS y compilamos assets
-            # Usamos npm o yarn según lo que uses en este proyecto
             if command -v npm &> /dev/null
             then
                 npm install
@@ -99,32 +95,30 @@ jobs:
             fi
 
             # 5. WP-CLI y Limpieza de caché
-            cd /home/directorio/www
+            cd /home/tu_usuario/www
             php84 $(which wp) cache flush
             php84 $(which wp) acorn view:clear
 ```
 
 ## 3. Prepara el hosting para el primer `git clone`
-GitHub Actions está configurado para hacer un `git pull`, pero `git pull` **solo funciona si ya existe un repositorio de Git en la carpeta**.\
+GitHub Actions ejecuta un `git pull`, el cual solo funciona si ya existe un repositorio Git vinculado en el servidor. Si tu carpeta `/www` aún no tiene Git, ejecuta estos comandos en el servidor **una única vez**:
 
-Si tu web en `/home/directorio/www` todavía no tiene Git, debes inicializarlo una única vez a mano:
+```bash
+cd /home/tu_usuario/www
 
-```
-cd /home/clinicadentalmartorell/www
-
-# Si la carpeta tiene archivos pero no tiene .git:
+# Inicializamos el repo
 git init
 
-# Cambiamos el nombre de la rama local a 'main' para que coincida con GitHub
+# Renombramos la rama local a 'main'
 git branch -m main
 
-# Añadimos el origen (sustituye con tu URL de SSH real)
+# Añadimos el remote (usa la URL de SSH de tu repo)
 git remote add origin git@github.com:usuario/repo.git
 
-# Traer datos de GitHub (di que "yes" si te pregunta por la autenticidad del host)
+# Validamos la conexión (escribe "yes" cuando pregunte)
 git fetch origin
 
-# Cuidado: esto alineará la carpeta con lo que hay en GitHub, solo aplica si ya tenias un repositorio o contenido
+# Sincronizamos el contenido inicial
 git reset --hard origin/main
 ```
 
@@ -133,21 +127,13 @@ git reset --hard origin/main
 > **Prueba de PHP**: Escribe `php84 -v`. Si te da la versión, perfecto.\
 > **Prueba de Composer**: Escribe `which composer. Si te devuelve una ruta (ej: `/usr/local/bin/composer`), el script funcionará.
 
-## 4. Primer "Push" de activación
+## 4. Activación del despliegue
 
-Para que GitHub sepa que tiene que hacer el deploy, debes subir los cambios. Desde tu terminal local (donde tienes el proyecto):
+Desde tu terminal local, sube el archivo del workflow:
 
-```
-# 1. Asegúrate de estar en la rama main
-git checkout main
-
-# 2. Añade el archivo del workflow si no lo habías hecho
+```bash
 git add .github/workflows/deploy.yml
-
-# 3. Haz el commit
 git commit -m "ci: añadir workflow de despliegue automático"
-
-# 4. Sube los cambios
 git push origin main
 ```
 
@@ -157,11 +143,6 @@ En cuanto hagas el push, GitHub detectará el archivo `.yml`y arrancará la "Act
 2. Haz clic en la pestaña "Actions" (en la barra superior).
 3. Verás un flujo llamado "Deploy to Dinahosting" con un círculo amarillo (indicando que está en proceso).
 4. Haz clic en el nombre del commit para ver los logs en tiempo real.
-
-
-
-
-
 
 
 
